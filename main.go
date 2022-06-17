@@ -4,55 +4,55 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 
 	"github.com/dave/jennifer/jen"
 )
 
 func main() {
-	targetDir := os.Args[1]
-
-	dir, err := os.Getwd()
+	targetDir, err := getTargetDir()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Failed to get target dir: %s\n", err)
 		os.Exit(1)
 	}
 
-	path := filepath.Join(dir, targetDir)
-
-	if f, err := os.Stat(path); os.IsNotExist(err) || !f.IsDir() {
-		if err := os.Mkdir(path, 0700); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}
-
-	if err := makeGoMod(path); err != nil {
-		fmt.Println(err)
+	if err := makeGoMod(targetDir); err != nil {
+		fmt.Printf("Failed to make go.mod:%s\n", err)
 		os.Exit(1)
 	}
 
-	if err := makeMain(path); err != nil {
-		fmt.Println(err)
+	if err := makeMain(targetDir); err != nil {
+		fmt.Printf("Failed to make main.go:%s\n", err)
 		os.Exit(1)
 	}
 }
 
 func makeDir(dir string) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	path := filepath.Join(wd, dir)
-
-	if f, err := os.Stat(path); os.IsNotExist(err) || !f.IsDir() {
-		if err := os.Mkdir(path, 0700); err != nil {
-			os.Exit(1)
+	if f, err := os.Stat(dir); os.IsNotExist(err) || !f.IsDir() {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func getTargetDir() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	targetDir := wd
+
+	if len(os.Args[1:]) > 0 {
+		targetDir = path.Join(wd, os.Args[1])
+		if err := makeDir(targetDir); err != nil {
+			return "", err
+		}
+	}
+
+	return targetDir, nil
 }
 
 func makeMain(dir string) error {
